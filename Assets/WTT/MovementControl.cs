@@ -16,8 +16,8 @@ public class MovementControl : MonoBehaviour
         {
             Vector3 direction = transform.position - centre.position;
             Vector3 move = direction.normalized * speed * Time.deltaTime;
-            player.position += move;
-            controller.position += move;
+            //player.position += move;
+            //controller.position += move;
         }
     }
 }

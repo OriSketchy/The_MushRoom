@@ -8,14 +8,28 @@ namespace Valve.VR.Extras
     public class SteamVR_TestThrow : MonoBehaviour
     {
         public GameObject prefab;
+        public GameObject innerPrefab;
+        public GameObject outerPrefab;
         public Rigidbody attachPoint;
         public float angle = 0f;
+
+        [SerializeField]
+        [Range(0f, 0.2f)]
+        private float minDistance = 0.1f;
+        [SerializeField]
+        [Range(0f, 1f)]
+        private float maxDistance = 0.4f;
+        [SerializeField]
+        [Range(0, 10)]
+        private float maxSpeed = 2f;
 
         public SteamVR_Action_Boolean spawn = SteamVR_Input.GetAction<SteamVR_Action_Boolean>("InteractUI");
 
         SteamVR_Behaviour_Pose trackedObj;
         //FixedJoint joint;
         GameObject go;
+        GameObject inner;
+        GameObject outer;
 
         public Transform player;
 
@@ -30,44 +44,52 @@ namespace Valve.VR.Extras
             {
                 go = GameObject.Instantiate(prefab);
                 go.transform.position = attachPoint.transform.position;
-                go.transform.rotation = trackedObj.transform.rotation;
+                Quaternion rotation = Quaternion.FromToRotation(trackedObj.transform.up, Vector3.up);
+                go.transform.rotation = rotation * trackedObj.transform.rotation;
+                inner = GameObject.Instantiate(innerPrefab);
+                outer = GameObject.Instantiate(outerPrefab);
+                inner.transform.position = attachPoint.transform.position;
+                outer.transform.position = attachPoint.transform.position;
 
-                //go.transform.rotation = trackedObj.transform.rotation;
-                //joint = go.AddComponent<FixedJoint>();
-                //joint.connectedBody = attachPoint;
+                inner.transform.localScale = new Vector3(minDistance, minDistance, minDistance);
+                outer.transform.localScale = new Vector3(maxDistance, maxDistance, maxDistance);
             }
             else if (go != null && spawn.GetStateUp(trackedObj.inputSource))
             {
                 //GameObject go = joint.gameObject;
                 //Rigidbody rigidbody = go.GetComponent<Rigidbody>();
                 Object.DestroyImmediate(go);
+                Object.DestroyImmediate(inner);
+                Object.DestroyImmediate(outer);
                 go = null;
-                //Object.Destroy(go, 15.0f);
-
-                // We should probably apply the offset between trackedObj.transform.position
-                // and device.transform.pos to insert into the physics sim at the correct
-                // location, however, we would then want to predict ahead the visual representation
-                // by the same amount we are predicting our render poses.
-
-                //Transform origin = trackedObj.origin ? trackedObj.origin : trackedObj.transform.parent;
-                //if (origin != null)
-                //{
-                //    rigidbody.velocity = origin.TransformVector(trackedObj.GetVelocity());
-                //    rigidbody.angularVelocity = origin.TransformVector(trackedObj.GetAngularVelocity());
-                //}
-                //else
-                //{
-                //    rigidbody.velocity = trackedObj.GetVelocity();
-                //    rigidbody.angularVelocity = trackedObj.GetAngularVelocity();
-                //}
-
-                //rigidbody.maxAngularVelocity = rigidbody.angularVelocity.magnitude;
+            
             }
 
             if (go != null)
             {
-                //Vector3 distance = go.transform.position - transform.position;
-                //Debug.Log(distance.normalized);
+                Vector3 distance = trackedObj.transform.position - go.transform.position;
+                //float speed = distance.magnitude;
+                float range = maxDistance - minDistance;
+                float speed = (Mathf.Clamp(distance.magnitude, minDistance, maxDistance) - minDistance) / range * maxSpeed * Time.fixedDeltaTime;
+                //float speed = Mathf.Clamp(distance.magnitude, minDistance, maxDistance);
+                Debug.Log(speed);
+                Vector3 move = distance.normalized * speed;
+                Debug.DrawLine(go.transform.position, go.transform.position + move);
+                player.position += move;
+                go.transform.position += move;
+                inner.transform.position += move;
+                outer.transform.position += move;
+            }
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (go != null)
+            {
+                Gizmos.color = new Color(0, 0, 1, 0.5f);
+                Gizmos.DrawSphere(go.transform.position, minDistance);
+                Gizmos.color = new Color(1, 0, 0, 0.5f);
+                Gizmos.DrawSphere(go.transform.position, maxDistance);
             }
         }
     }
