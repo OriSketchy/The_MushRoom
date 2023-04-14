@@ -20,7 +20,7 @@ namespace Valve.VR.Extras
         [Range(0f, 1f)]
         private float maxDistance = 0.4f;
         [SerializeField]
-        [Range(0, 10)]
+        [Range(0, 100)]
         private float maxSpeed = 2f;
 
         public SteamVR_Action_Boolean spawn = SteamVR_Input.GetAction<SteamVR_Action_Boolean>("InteractUI");
