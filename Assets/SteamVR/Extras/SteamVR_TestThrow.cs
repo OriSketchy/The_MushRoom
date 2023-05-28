@@ -53,6 +53,12 @@ namespace Valve.VR.Extras
 
                 inner.transform.localScale = new Vector3(minDistance, minDistance, minDistance);
                 outer.transform.localScale = new Vector3(maxDistance, maxDistance, maxDistance);
+
+                go.transform.SetParent(player);
+                inner.transform.SetParent(player);
+                outer.transform.SetParent(player);
+
+
             }
             else if (go != null && spawn.GetStateUp(trackedObj.inputSource))
             {
@@ -76,9 +82,9 @@ namespace Valve.VR.Extras
                 Vector3 move = distance.normalized * speed;
                 Debug.DrawLine(go.transform.position, go.transform.position + move);
                 player.position += move;
-                go.transform.position += move;
-                inner.transform.position += move;
-                outer.transform.position += move;
+                //go.transform.position += move;
+                //inner.transform.position += move;
+                //outer.transform.position += move;
             }
         }
 

@@ -4,9 +4,10 @@ using UnityEngine;
 
 public class MovementControl : MonoBehaviour
 {
-    public Transform player;
+    public DroneMovement player;
     public Transform centre;
     public Transform controller;
+
 
     public float speed = 1;
 
@@ -16,8 +17,12 @@ public class MovementControl : MonoBehaviour
         {
             Vector3 direction = transform.position - centre.position;
             Vector3 move = direction.normalized * speed * Time.deltaTime;
+
+            player.Move(move);
+
             //player.position += move;
             //controller.position += move;
         }
     }
 }
+
