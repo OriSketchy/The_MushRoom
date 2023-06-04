@@ -1,6 +1,7 @@
 ﻿//======= Copyright (c) Valve Corporation, All rights reserved. ===============
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Valve.VR.Extras
 {
@@ -82,9 +83,6 @@ namespace Valve.VR.Extras
                 Vector3 move = distance.normalized * speed;
                 Debug.DrawLine(go.transform.position, go.transform.position + move);
                 player.position += move;
-                //go.transform.position += move;
-                //inner.transform.position += move;
-                //outer.transform.position += move;
             }
         }
 
