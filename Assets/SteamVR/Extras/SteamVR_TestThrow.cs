@@ -12,7 +12,17 @@ namespace Valve.VR.Extras
         public GameObject innerPrefab;
         public GameObject outerPrefab;
         public Rigidbody attachPoint;
-        public float angle = 0f;
+
+        [SerializeField]
+        private LayerMask walls = 0;
+
+        [SerializeField]
+        [Range(0f, 10f)]
+        private float brakeRange = 10;
+
+        [SerializeField]
+        [Range(0f, 10f)]
+        private float stopRange = 1;
 
         [SerializeField]
         [Range(0f, 0.2f)]
@@ -79,21 +89,55 @@ namespace Valve.VR.Extras
                 float range = maxDistance - minDistance;
                 float speed = (Mathf.Clamp(distance.magnitude, minDistance, maxDistance) - minDistance) / range * maxSpeed * Time.fixedDeltaTime;
                 //float speed = Mathf.Clamp(distance.magnitude, minDistance, maxDistance);
-                Debug.Log(speed);
+                //Debug.Log(speed);
+
+                float brake = 1;
+                if (Physics.Raycast(go.transform.position, distance, out RaycastHit hitInfo, brakeRange, walls))
+                {
+                    brake = Mathf.Max(0, hitInfo.distance - stopRange) / (brakeRange - stopRange);
+                }
+                speed *= brake;
+
                 Vector3 move = distance.normalized * speed;
-                Debug.DrawLine(go.transform.position, go.transform.position + move);
+                Debug.DrawLine(go.transform.position, go.transform.position + move * 10);
                 player.position += move;
+
             }
         }
 
         private void OnDrawGizmos()
         {
+            float sizeX = Valve.VR.InteractionSystem.ChaperoneInfo.instance.playAreaSizeX;
+            float sizeY = 2f;
+            float sizeZ = Valve.VR.InteractionSystem.ChaperoneInfo.instance.playAreaSizeZ;
+
+            Gizmos.color = new Color(1, 1, 0, 0.5f);
+            Gizmos.DrawCube(player.position, new Vector3(sizeX, sizeY, sizeZ));
+
             if (go != null)
             {
-                Gizmos.color = new Color(0, 0, 1, 0.5f);
-                Gizmos.DrawSphere(go.transform.position, minDistance);
-                Gizmos.color = new Color(1, 0, 0, 0.5f);
-                Gizmos.DrawSphere(go.transform.position, maxDistance);
+                Vector3 distance = trackedObj.transform.position - go.transform.position;
+                Vector3 direction = distance.normalized;
+
+                //Gizmos.color = new Color(0, 0, 1, 0.5f);
+                //Gizmos.DrawSphere(go.transform.position, minDistance);
+                //Gizmos.color = new Color(1, 0, 0, 0.5f);
+                //Gizmos.DrawSphere(go.transform.position, maxDistance);
+
+                if (Physics.Raycast(go.transform.position, direction, out RaycastHit hitInfo, brakeRange, walls))
+                {
+                    Debug.Log("hit: " + hitInfo.distance);
+                    Gizmos.color = Color.yellow;
+                    Gizmos.DrawRay(go.transform.position, direction * hitInfo.distance);
+                    Gizmos.color = Color.red;
+                    Gizmos.DrawRay(go.transform.position + direction * hitInfo.distance, direction * (brakeRange - hitInfo.distance));
+                }
+                else
+                {
+                    Debug.Log("miss");
+                    Gizmos.color = Color.blue;
+                    Gizmos.DrawRay(go.transform.position, direction * brakeRange);
+                }
             }
         }
     }
