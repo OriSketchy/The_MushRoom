@@ -37,7 +37,7 @@ public class FlyRoom : MonoBehaviour
     float maxSpeed = 2f;
     
     [SerializeField]
-    Collider room;
+    BoxCollider room;
 
     Valve.VR.SteamVR_PlayArea playArea = null;
     
@@ -54,10 +54,28 @@ public class FlyRoom : MonoBehaviour
         playArea = gameObject.GetComponent<Valve.VR.SteamVR_PlayArea>();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void FixedUpdate()
     {
+        FindWalls();
+    }
 
+    private void FindWalls()
+    {
+        var quad = new Valve.VR.HmdQuad_t();
+        if (!playArea || !Valve.VR.SteamVR_PlayArea.GetBounds(playArea.size, ref quad))
+            return;
+
+        float minX = Mathf.Min(quad.vCorners0.v0, quad.vCorners1.v0, quad.vCorners2.v0, quad.vCorners3.v0);
+        float maxX = Mathf.Max(quad.vCorners0.v0, quad.vCorners1.v0, quad.vCorners2.v0, quad.vCorners3.v0);
+        float minZ = Mathf.Min(quad.vCorners0.v2, quad.vCorners1.v2, quad.vCorners2.v2, quad.vCorners3.v2);
+        float maxZ = Mathf.Max(quad.vCorners0.v2, quad.vCorners1.v2, quad.vCorners2.v2, quad.vCorners3.v2);
+
+        Bounds bounds = new Bounds();
+        bounds.min = new Vector3(minX, 0, minZ);
+        bounds.max = new Vector3(maxX, playArea.wireframeHeight, maxZ);
+
+        room.center = bounds.center;
+        room.size = bounds.size;
     }
 
     public void Start(Transform controller)
@@ -91,16 +109,15 @@ public class FlyRoom : MonoBehaviour
         controllerPos = controller.position;
 
         Vector3 distance = controller.position - go.transform.position;
-        //float speed = distance.magnitude;
         float range = maxDistance - minDistance;
         float speed = (Mathf.Clamp(distance.magnitude, minDistance, maxDistance) - minDistance) / range * maxSpeed * Time.fixedDeltaTime;
-        //float speed = Mathf.Clamp(distance.magnitude, minDistance, maxDistance);
-        //Debug.Log(speed);
 
         float brake = 1;
-        if (Physics.Raycast(go.transform.position, distance, out RaycastHit hitInfo, brakeRange, walls))
+        if (Physics.Raycast(go.transform.position, distance, out RaycastHit hitInfo, brakeRange * 2, walls))
         {
-            brake = Mathf.Max(0, hitInfo.distance - stopRange) / (brakeRange - stopRange);
+            Vector3 closest = room.ClosestPoint(hitInfo.point);
+            float wallDistance = (hitInfo.point - closest).magnitude;
+            brake = Mathf.Max(0, wallDistance - stopRange) / (brakeRange - stopRange);
         }
         speed *= brake;
 
@@ -132,53 +149,45 @@ public class FlyRoom : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        var quad = new Valve.VR.HmdQuad_t();
-        if (!playArea || !Valve.VR.SteamVR_PlayArea.GetBounds(playArea.size, ref quad))
-            return;
-
-        Vector3 corner0 = new Vector3(quad.vCorners0.v0, quad.vCorners0.v1, quad.vCorners0.v2);
-        Vector3 corner1 = new Vector3(quad.vCorners1.v0, quad.vCorners1.v1, quad.vCorners1.v2);
-        Vector3 corner2 = new Vector3(quad.vCorners2.v0, quad.vCorners2.v1, quad.vCorners2.v2);
-        Vector3 corner3 = new Vector3(quad.vCorners3.v0, quad.vCorners3.v1, quad.vCorners3.v2);
-
-        float minX = Mathf.Min(quad.vCorners0.v0, quad.vCorners1.v0, quad.vCorners2.v0, quad.vCorners3.v0);
-        float maxX = Mathf.Max(quad.vCorners0.v0, quad.vCorners1.v0, quad.vCorners2.v0, quad.vCorners3.v0);
-        float minZ = Mathf.Min(quad.vCorners0.v2, quad.vCorners1.v2, quad.vCorners2.v2, quad.vCorners3.v2);
-        float maxZ = Mathf.Max(quad.vCorners0.v2, quad.vCorners1.v2, quad.vCorners2.v2, quad.vCorners3.v2);
-
-        Bounds bounds = new Bounds();
-        bounds.min = new Vector3(minX, 0, minZ);
-        bounds.max = new Vector3(maxX, playArea.wireframeHeight, maxZ);
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(transform.TransformPoint(corner0), transform.TransformPoint(corner2));
-        Gizmos.color = Color.green;
-        Gizmos.DrawLine(transform.TransformPoint(corner1), transform.TransformPoint(corner3));
-        //Gizmos.DrawCube(transform.TransformPoint(bounds.center), bounds.size);
-
-
         if (go != null)
         {
             Vector3 distance = controllerPos - go.transform.position;
             Vector3 direction = distance.normalized;
+            Ray ray = new Ray(go.transform.position, direction);
 
-            //Gizmos.color = new Color(0, 0, 1, 0.5f);
-            //Gizmos.DrawSphere(go.transform.position, minDistance);
-            //Gizmos.color = new Color(1, 0, 0, 0.5f);
-            //Gizmos.DrawSphere(go.transform.position, maxDistance);
-
-            if (Physics.Raycast(go.transform.position, direction, out RaycastHit hitInfo, brakeRange, walls))
+            if (Physics.Raycast(go.transform.position, direction, out RaycastHit hitInfo, brakeRange * 2, walls))
             {
-                //Debug.Log("hit: " + hitInfo.distance);
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawRay(go.transform.position, direction * hitInfo.distance);
+                Vector3 closest = room.ClosestPoint(hitInfo.point);
+
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawLine(go.transform.position, closest);
+
+                Vector3 brakeLine = hitInfo.point - closest;
+
+                Vector3 stopEnd = closest + brakeLine.normalized * stopRange;
+                Vector3 brakeEnd = closest + brakeLine.normalized * brakeRange;
+
                 Gizmos.color = Color.red;
-                Gizmos.DrawRay(go.transform.position + direction * hitInfo.distance, direction * (brakeRange - hitInfo.distance));
+                Gizmos.DrawLine(closest, stopEnd);
+
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawLine(stopEnd, brakeEnd);
+
+                if ((brakeEnd - closest).magnitude < (hitInfo.point - closest).magnitude)
+                {
+                    Gizmos.color = Color.green;
+                    Gizmos.DrawLine(brakeEnd, hitInfo.point);
+                }
+
+                //Debug.Log("hit: " + hitInfo.distance);
+                Gizmos.color = Color.white;
+                Gizmos.DrawRay(go.transform.position, direction * hitInfo.distance);
             }
             else
             {
                 //Debug.Log("miss");
                 Gizmos.color = Color.blue;
-                Gizmos.DrawRay(go.transform.position, direction * brakeRange);
+                Gizmos.DrawRay(go.transform.position, direction * brakeRange * 2);
             }
         }
     }
